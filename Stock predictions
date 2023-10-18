@@ -1,0 +1,47 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import tensorflow as tf
+from sklearn.preprocessing import MinMaxScaler
+data = pd.read_csv('YOUR_STOCK_DATA.csv')
+data = data[['Close']].values
+scaler = MinMaxScaler()
+data = scaler.fit_transform(data)
+train_size = int(len(data) * 0.8)
+train_data, test_data = data[:train_size], data[train_size:]
+def create_sequences(data, seq_length):
+    sequences = []
+    for i in range(len(data) - seq_length):
+        sequences.append(data[i:i+seq_length])
+    return np.array(sequences)
+
+sequence_length = 10
+train_sequences = create_sequences(train_data, sequence_length)
+test_sequences = create_sequences(test_data, sequence_length)
+
+X_train, y_train = train_sequences[:, :-1], train_sequences[:, -1]
+X_test, y_test = test_sequences[:, :-1], test_sequences[:, -1]
+
+model = tf.keras.Sequential([
+    tf.keras.layers.LSTM(50, return_sequences=True, input_shape=(X_train.shape[1], X_train.shape[2])),
+    tf.keras.layers.LSTM(50),
+    tf.keras.layers.Dense(1)
+])
+
+model.compile(optimizer='adam', loss='mean_squared_error')
+
+model.fit(X_train, y_train, epochs=10, batch_size=32)
+
+test_loss = model.evaluate(X_test, y_test)
+print(f'Test Loss: {test_loss}')
+
+predicted = model.predict(X_test)
+
+predicted = scaler.inverse_transform(predicted)
+y_test = scaler.inverse_transform(y_test)
+
+plt.figure(figsize=(16, 6))
+plt.plot(predicted, label='Predicted')
+plt.plot(y_test, label='Actual')
+plt.legend()
+plt.show()
